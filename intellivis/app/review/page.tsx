@@ -68,6 +68,10 @@ export default function ReviewPage() {
   };
 
   const handleEditMetadata = () => {
+    // Ensure current metadata is saved before navigating back
+    if (metadata) {
+      sessionStorage.setItem('metadata', JSON.stringify(metadata));
+    }
     router.push('/metadata');
   };
 

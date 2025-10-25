@@ -15,6 +15,7 @@ export default function MetadataPage() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     // Check if we have processed data from the previous step
@@ -23,6 +24,19 @@ export default function MetadataPage() {
       router.push('/upload');
       return;
     }
+
+    // Load existing metadata if available (when coming back from review page)
+    const storedMetadata = sessionStorage.getItem('metadata');
+    if (storedMetadata) {
+      try {
+        const metadata = JSON.parse(storedMetadata);
+        setFormData(metadata);
+        setIsEditing(true); // Indicate that we're editing existing metadata
+      } catch (error) {
+        console.error('Error parsing stored metadata:', error);
+      }
+    }
+
     setIsLoading(false);
   }, [router]);
 
@@ -134,11 +148,18 @@ export default function MetadataPage() {
           {/* Header */}
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Step 2: Add Dataset Metadata
+              {isEditing ? 'Edit Dataset Metadata' : 'Step 2: Add Dataset Metadata'}
             </h1>
             <p className="text-lg text-gray-600 dark:text-gray-300">
-              Provide information about your dataset
+              {isEditing ? 'Update your dataset information' : 'Provide information about your dataset'}
             </p>
+            {isEditing && (
+              <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg max-w-2xl mx-auto">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  <strong>Editing existing metadata:</strong> Your previous entries have been loaded. Make any changes and continue.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Form */}
@@ -263,7 +284,7 @@ export default function MetadataPage() {
                   type="submit"
                   className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  Continue to Review →
+                  {isEditing ? 'Update and Continue to Review →' : 'Continue to Review →'}
                 </button>
               </div>
             </form>

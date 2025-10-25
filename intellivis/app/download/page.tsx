@@ -12,6 +12,13 @@ export default function DownloadPage() {
   const [sanitizedFolderName, setSanitizedFolderName] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [expandedFiles, setExpandedFiles] = useState<{
+    dataJson: boolean;
+    metadataJson: boolean;
+  }>({
+    dataJson: false,
+    metadataJson: false
+  });
 
   useEffect(() => {
     // Load data from sessionStorage
@@ -85,6 +92,39 @@ export default function DownloadPage() {
     sessionStorage.removeItem('openGinData');
     sessionStorage.removeItem('datasetName');
     router.push('/upload');
+  };
+
+  const toggleFileContent = (fileType: 'dataJson' | 'metadataJson') => {
+    setExpandedFiles(prev => ({
+      ...prev,
+      [fileType]: !prev[fileType]
+    }));
+  };
+
+  const getDataJsonContent = () => {
+    if (!openGinData) return '';
+    return JSON.stringify({
+      columns: openGinData.columns,
+      rows: openGinData.rows
+    }, null, 2);
+  };
+
+  const getMetadataJsonContent = () => {
+    if (!openGinData) return '';
+    return JSON.stringify({
+      datasetName: openGinData.datasetName,
+      metadata: openGinData.metadata
+    }, null, 2);
+  };
+
+  const copyToClipboard = async (content: string, fileName: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      // You could add a toast notification here
+      console.log(`${fileName} content copied to clipboard`);
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
+    }
   };
 
   if (isLoading) {
@@ -175,56 +215,142 @@ export default function DownloadPage() {
           {/* File Details */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">data.json</h3>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-300">Columns:</span>
-                  <span className="font-medium">{openGinData.columns.length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-300">Rows:</span>
-                  <span className="font-medium">{openGinData.rows.length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-300">Format:</span>
-                  <span className="font-medium">OpenGIN Tabular</span>
-                </div>
-              </div>
-              <div className="mt-4">
-                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Columns:</h4>
-                <div className="flex flex-wrap gap-1">
-                  {openGinData.columns.slice(0, 3).map((col, index) => (
-                    <span key={index} className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded">
-                      {col}
+              <div 
+                className="cursor-pointer"
+                onClick={() => toggleFileContent('dataJson')}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">data.json</h3>
+                  <div className="flex items-center text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+                    <span className="text-sm mr-2">
+                      {expandedFiles.dataJson ? 'Hide Content' : 'Show Content'}
                     </span>
-                  ))}
-                  {openGinData.columns.length > 3 && (
-                    <span className="text-xs text-gray-500">+{openGinData.columns.length - 3} more</span>
-                  )}
+                    <svg 
+                      className={`w-4 h-4 transform transition-transform ${expandedFiles.dataJson ? 'rotate-180' : ''}`}
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-300">Columns:</span>
+                    <span className="font-medium">{openGinData.columns.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-300">Rows:</span>
+                    <span className="font-medium">{openGinData.rows.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-300">Format:</span>
+                    <span className="font-medium">OpenGIN Tabular</span>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Columns:</h4>
+                  <div className="flex flex-wrap gap-1">
+                    {openGinData.columns.slice(0, 3).map((col, index) => (
+                      <span key={index} className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded">
+                        {col}
+                      </span>
+                    ))}
+                    {openGinData.columns.length > 3 && (
+                      <span className="text-xs text-gray-500">+{openGinData.columns.length - 3} more</span>
+                    )}
+                  </div>
                 </div>
               </div>
+
+              {/* Expandable Content */}
+              {expandedFiles.dataJson && (
+                <div className="mt-4 border-t border-gray-200 dark:border-gray-600 pt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">File Content:</h4>
+                    <button
+                      onClick={() => copyToClipboard(getDataJsonContent(), 'data.json')}
+                      className="flex items-center px-3 py-1 text-xs bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-md transition-colors"
+                    >
+                      <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      Copy
+                    </button>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 max-h-96 overflow-auto">
+                    <pre className="text-xs text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
+                      {getDataJsonContent()}
+                    </pre>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">metadata.json</h3>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-300">Dataset:</span>
-                  <span className="font-medium">{openGinData.datasetName}</span>
+              <div 
+                className="cursor-pointer"
+                onClick={() => toggleFileContent('metadataJson')}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">metadata.json</h3>
+                  <div className="flex items-center text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+                    <span className="text-sm mr-2">
+                      {expandedFiles.metadataJson ? 'Hide Content' : 'Show Content'}
+                    </span>
+                    <svg 
+                      className={`w-4 h-4 transform transition-transform ${expandedFiles.metadataJson ? 'rotate-180' : ''}`}
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-300">Source:</span>
-                  <span className="font-medium text-sm">{openGinData.metadata.dataSource}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-300">Created:</span>
-                  <span className="font-medium">{openGinData.metadata.dateOfCreation}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-300">Entry Person:</span>
-                  <span className="font-medium text-sm">{openGinData.metadata.dataEntryPerson}</span>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-300">Dataset:</span>
+                    <span className="font-medium">{openGinData.datasetName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-300">Source:</span>
+                    <span className="font-medium text-sm">{openGinData.metadata.dataSource}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-300">Created:</span>
+                    <span className="font-medium">{openGinData.metadata.dateOfCreation}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-300">Entry Person:</span>
+                    <span className="font-medium text-sm">{openGinData.metadata.dataEntryPerson}</span>
+                  </div>
                 </div>
               </div>
+
+              {/* Expandable Content */}
+              {expandedFiles.metadataJson && (
+                <div className="mt-4 border-t border-gray-200 dark:border-gray-600 pt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">File Content:</h4>
+                    <button
+                      onClick={() => copyToClipboard(getMetadataJsonContent(), 'metadata.json')}
+                      className="flex items-center px-3 py-1 text-xs bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-md transition-colors"
+                    >
+                      <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      Copy
+                    </button>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 max-h-96 overflow-auto">
+                    <pre className="text-xs text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
+                      {getMetadataJsonContent()}
+                    </pre>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
