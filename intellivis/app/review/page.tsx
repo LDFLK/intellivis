@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import DataPreview from '../components/DataPreview';
+import WorkflowProgress from '../components/WorkflowProgress';
 import { OpenGinProcessor, ProcessedFileData, OpenGinMetadata, OpenGinTabularFormat, Category } from '../utils/openGinProcessor';
 
 export default function ReviewPage() {
@@ -128,6 +129,9 @@ export default function ReviewPage() {
               Review your data and metadata, then generate OpenGIN format files
             </p>
           </div>
+
+          {/* Workflow Progress */}
+          <WorkflowProgress currentStep={3} className="mb-8" />
 
           {/* Dataset Name */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-8">

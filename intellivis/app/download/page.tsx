@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { OpenGinTabularFormat, OpenGinMetadata, Category } from '../utils/openGinProcessor';
 import { ZipGenerator, ZipFile } from '../utils/zipGenerator';
+import WorkflowProgress from '../components/WorkflowProgress';
 
 export default function DownloadPage() {
   const router = useRouter();
@@ -12,6 +13,7 @@ export default function DownloadPage() {
   const [sanitizedFolderName, setSanitizedFolderName] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDownloaded, setIsDownloaded] = useState(false);
   const [expandedFiles, setExpandedFiles] = useState<{
     dataJson: boolean;
     metadataJson: boolean;
@@ -77,6 +79,9 @@ export default function DownloadPage() {
       
       // Download the zip file
       ZipGenerator.downloadZip(zipBlob, `${sanitizedFolderName}.zip`);
+      
+      // Mark as downloaded
+      setIsDownloaded(true);
       
     } catch (error) {
       console.error('Error generating zip file:', error);
@@ -180,6 +185,9 @@ export default function DownloadPage() {
               Your OpenGIN format files are ready for download
             </p>
           </div>
+
+          {/* Workflow Progress */}
+          <WorkflowProgress currentStep={4} isCompleted={isDownloaded} className="mb-8" />
 
           {/* Success Message */}
           <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-6 mb-8">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Category } from '../utils/openGinProcessor';
 
 interface CategoryManagerProps {
@@ -10,6 +10,11 @@ interface CategoryManagerProps {
 
 export default function CategoryManager({ categories = [], onChange }: CategoryManagerProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+
+  // Debug logging
+  useEffect(() => {
+    console.log('CategoryManager categories changed:', categories);
+  }, [categories]);
 
   const toggleExpanded = (path: string) => {
     const newExpanded = new Set(expandedCategories);
@@ -64,25 +69,76 @@ export default function CategoryManager({ categories = [], onChange }: CategoryM
   };
 
   const removeCategory = (path: string) => {
-    const newCategories = [...(categories || [])];
+    // Find the category name for confirmation
     const pathParts = path.split('.');
+    let categoryName = '';
     
-    if (pathParts.length === 1) {
-      // Remove top-level category
-      const index = parseInt(pathParts[0]);
-      newCategories.splice(index, 1);
-    } else {
-      // Remove subcategory
-      let current = newCategories;
-      for (let i = 0; i < pathParts.length - 2; i++) {
-        const index = parseInt(pathParts[i]);
-        current = current[index].subcategories!;
+    try {
+      if (pathParts.length === 1) {
+        const index = parseInt(pathParts[0]);
+        if (index >= 0 && index < (categories || []).length) {
+          categoryName = (categories || [])[index].name || 'Untitled Category';
+        }
+      } else {
+        let current = categories || [];
+        for (let i = 0; i < pathParts.length; i++) {
+          const index = parseInt(pathParts[i]);
+          if (index >= 0 && index < current.length) {
+            if (i === pathParts.length - 1) {
+              categoryName = current[index].name || 'Untitled Category';
+            } else {
+              current = current[index].subcategories || [];
+            }
+          }
+        }
       }
-      const lastIndex = parseInt(pathParts[pathParts.length - 1]);
-      current.splice(lastIndex, 1);
+      
+      // Confirm deletion
+      if (window.confirm(`Are you sure you want to remove "${categoryName}"? This action cannot be undone.`)) {
+        const newCategories = [...(categories || [])];
+        
+        if (pathParts.length === 1) {
+          // Remove top-level category
+          const index = parseInt(pathParts[0]);
+          if (index >= 0 && index < newCategories.length) {
+            newCategories.splice(index, 1);
+          }
+        } else {
+          // Remove subcategory - navigate to the parent category
+          let current = newCategories;
+          for (let i = 0; i < pathParts.length - 1; i++) {
+            const index = parseInt(pathParts[i]);
+            if (index >= 0 && index < current.length) {
+              if (i === pathParts.length - 2) {
+                // We're at the parent category, remove the subcategory
+                if (!current[index].subcategories) {
+                  current[index].subcategories = [];
+                }
+                const subIndex = parseInt(pathParts[pathParts.length - 1]);
+                if (subIndex >= 0 && subIndex < current[index].subcategories!.length) {
+                  current[index].subcategories!.splice(subIndex, 1);
+                }
+              } else {
+                // Navigate deeper
+                if (current[index].subcategories) {
+                  current = current[index].subcategories!;
+                } else {
+                  console.error('Invalid path: subcategories not found');
+                  return;
+                }
+              }
+            } else {
+              console.error('Invalid path: index out of bounds');
+              return;
+            }
+          }
+        }
+        
+        onChange(newCategories);
+      }
+    } catch (error) {
+      console.error('Error removing category:', error);
     }
-    
-    onChange(newCategories);
   };
 
   const renderCategory = (category: Category, index: number, path: string, level: number = 0) => {

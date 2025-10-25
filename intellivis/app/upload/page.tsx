@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import FileUpload from '../components/FileUpload';
-import DataPreview from '../components/DataPreview';
+import WorkflowProgress from '../components/WorkflowProgress';
 import { OpenGinProcessor, ProcessedFileData } from '../utils/openGinProcessor';
 
 export default function UploadPage() {
@@ -19,6 +19,12 @@ export default function UploadPage() {
     try {
       const result = await OpenGinProcessor.processFile(file);
       setProcessedData(result);
+      
+      // Store processed data in sessionStorage
+      sessionStorage.setItem('processedData', JSON.stringify(result));
+      
+      // Navigate to metadata page after successful processing
+      router.push('/metadata');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to process file');
     } finally {
@@ -26,131 +32,158 @@ export default function UploadPage() {
     }
   };
 
-  const handleContinue = () => {
-    if (processedData) {
-      // Store the processed data in sessionStorage for the next page
-      sessionStorage.setItem('processedData', JSON.stringify(processedData));
-      router.push('/metadata');
-    }
-  };
-
-  const handleReset = () => {
-    setProcessedData(null);
-    setError(null);
+  const handleBack = () => {
+    router.push('/');
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-20" style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239C92AC' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+      }}></div>
+      
+      {/* Navigation */}
+      <nav className="relative z-10 px-6 py-4">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+            </div>
+            <span className="text-2xl font-bold text-white">OpenGIN</span>
+            <span className="text-2xl font-light text-gray-300">Intellivis</span>
+          </div>
+          <button
+            onClick={handleBack}
+            className="text-gray-300 hover:text-white transition-colors"
+          >
+            ← Back to Home
+          </button>
+        </div>
+      </nav>
+
+      {/* Main Content */}
+      <div className="relative z-10 px-6 py-20">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Step 1: Upload Your Data File
-            </h1>
-            <p className="text-lg text-gray-600 dark:text-gray-300">
-              Upload a CSV file or JSON file with columns/rows structure
-            </p>
-            <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg max-w-2xl mx-auto">
-              <p className="text-sm text-blue-800 dark:text-blue-200">
-                <strong>Supported formats:</strong> CSV files or JSON files with columns and rows structure
-              </p>
+          <div className="text-center mb-12">
+            <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center mb-8 mx-auto">
+              <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
             </div>
+            <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
+              Data Processing
+            </h1>
+            <p className="text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
+              Transform your CSV and JSON files into standardized OpenGIN tabular format with comprehensive metadata collection.
+            </p>
           </div>
 
-          {/* Upload Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-8">
+          {/* Workflow Progress */}
+          <WorkflowProgress currentStep={1} className="mb-12" />
+
+          {/* File Upload Section */}
+          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-8 mb-8">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-semibold text-white mb-4">Upload Your Data File</h2>
+              <p className="text-gray-300">
+                Choose a CSV file or JSON file with columns/rows structure to begin the conversion process.
+              </p>
+            </div>
+
             <FileUpload onFileSelect={handleFileSelect} />
-            
+
             {isProcessing && (
-              <div className="mt-4 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <span className="ml-2 text-gray-600 dark:text-gray-300">Processing file...</span>
+              <div className="mt-6 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <span className="ml-3 text-gray-300">Processing your file...</span>
               </div>
             )}
 
             {error && (
-              <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
-                <p className="text-red-600">{error}</p>
+              <div className="mt-6 p-4 bg-red-900/20 border border-red-500/50 rounded-lg">
+                <div className="flex items-center">
+                  <svg className="w-5 h-5 text-red-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-red-300">{error}</p>
+                </div>
               </div>
             )}
           </div>
 
-          {/* Data Preview */}
-          {processedData && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-8">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  Data Preview
-                </h2>
-                <button
-                  onClick={handleReset}
-                  className="px-4 py-2 text-gray-600 bg-gray-200 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500"
-                >
-                  Upload Different File
-                </button>
+          {/* Features */}
+          <div className="grid md:grid-cols-3 gap-6 mb-12">
+            <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+              <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center mb-4">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
               </div>
+              <h3 className="text-lg font-semibold text-white mb-2">CSV Support</h3>
+              <p className="text-gray-400 text-sm">Upload CSV files with headers and data rows</p>
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                  <h3 className="font-medium text-gray-900 dark:text-white">File Info</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
-                    Name: {processedData.fileName}
-                  </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
-                    Size: {(processedData.fileSize / 1024).toFixed(2)} KB
-                  </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
-                    Rows: {processedData.rowCount}
-                  </p>
-                </div>
-
-                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                  <h3 className="font-medium text-gray-900 dark:text-white">Columns</h3>
-                  <div className="flex flex-wrap gap-1">
-                    {processedData.columns.slice(0, 5).map((col, index) => (
-                      <span key={index} className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded">
-                        {col}
-                      </span>
-                    ))}
-                    {processedData.columns.length > 5 && (
-                      <span className="text-xs text-gray-500">+{processedData.columns.length - 5} more</span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                  <h3 className="font-medium text-gray-900 dark:text-white">Next Step</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
-                    Click "Continue to Metadata" to proceed with adding dataset information
-                  </p>
-                </div>
+            <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+              <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center mb-4">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
               </div>
+              <h3 className="text-lg font-semibold text-white mb-2">JSON Support</h3>
+              <p className="text-gray-400 text-sm">Upload JSON files with columns/rows structure</p>
+            </div>
 
-              <DataPreview data={processedData} />
+            <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+              <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg flex items-center justify-center mb-4">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-white mb-2">Fast Processing</h3>
+              <p className="text-gray-400 text-sm">Quick conversion to OpenGIN format</p>
+            </div>
+          </div>
 
-              <div className="text-center mt-6">
-                <button
-                  onClick={handleContinue}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg font-medium"
-                >
-                  Continue to Metadata →
-                </button>
+          {/* Call to Action */}
+          <div className="text-center">
+            <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-8 max-w-2xl mx-auto">
+              <h3 className="text-xl font-semibold text-white mb-4">
+                Ready to Process Your Data?
+              </h3>
+              <p className="text-gray-300 mb-6">
+                Upload your file above to start the OpenGIN conversion process. Your data will be transformed into a standardized format with comprehensive metadata collection.
+              </p>
+              <div className="flex justify-center items-center space-x-4 text-sm text-gray-400">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>Secure Processing</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>No Data Storage</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>OpenGIN Standard</span>
+                </div>
               </div>
             </div>
-          )}
-
-          {/* Navigation */}
-          <div className="text-center">
-            <button
-              onClick={() => router.push('/')}
-              className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
-            >
-              ← Back to Home
-            </button>
           </div>
         </div>
       </div>
+
+      {/* Footer */}
+      <footer className="relative z-10 px-6 py-8 border-t border-gray-800">
+        <div className="max-w-7xl mx-auto text-center">
+          <p className="text-gray-500">
+            © 2024 OpenGIN Intellivis. Advanced data processing and visualization platform.
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }

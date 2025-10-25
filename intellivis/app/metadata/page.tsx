@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { OpenGinMetadata, Category } from '../utils/openGinProcessor';
 import CategoryManager from '../components/CategoryManager';
+import WorkflowProgress from '../components/WorkflowProgress';
 
 export default function MetadataPage() {
   const router = useRouter();
@@ -32,8 +33,14 @@ export default function MetadataPage() {
     if (storedMetadata) {
       try {
         const metadata = JSON.parse(storedMetadata);
-        setFormData(metadata);
+        // Ensure categories field exists and is properly initialized
+        const metadataWithCategories = {
+          ...metadata,
+          categories: metadata.categories || []
+        };
+        setFormData(metadataWithCategories);
         setIsEditing(true); // Indicate that we're editing existing metadata
+        console.log('Loaded metadata with categories:', metadataWithCategories.categories);
       } catch (error) {
         console.error('Error parsing stored metadata:', error);
       }
@@ -126,6 +133,7 @@ export default function MetadataPage() {
       };
       
       // Store metadata in sessionStorage
+      console.log('Saving metadata with categories:', metadata.categories);
       sessionStorage.setItem('metadata', JSON.stringify(metadata));
       router.push('/review');
     }
@@ -144,31 +152,61 @@ export default function MetadataPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-20" style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239C92AC' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+      }}></div>
+      
+      {/* Navigation */}
+      <nav className="relative z-10 px-6 py-4">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+            </div>
+            <span className="text-2xl font-bold text-white">OpenGIN</span>
+            <span className="text-2xl font-light text-gray-300">Intellivis</span>
+          </div>
+          <button
+            onClick={handleBack}
+            className="text-gray-300 hover:text-white transition-colors"
+          >
+            ← Back to Upload
+          </button>
+        </div>
+      </nav>
+
+      {/* Main Content */}
+      <div className="relative z-10 px-6 py-8">
+        <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              {isEditing ? 'Edit Dataset Metadata' : 'Step 2: Add Dataset Metadata'}
+            <h1 className="text-4xl font-bold text-white mb-4">
+              {isEditing ? 'Edit Dataset Metadata' : 'Add Dataset Metadata'}
             </h1>
-            <p className="text-lg text-gray-600 dark:text-gray-300">
+            <p className="text-lg text-gray-300">
               {isEditing ? 'Update your dataset information' : 'Provide information about your dataset'}
             </p>
             {isEditing && (
-              <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg max-w-2xl mx-auto">
-                <p className="text-sm text-blue-800 dark:text-blue-200">
+              <div className="mt-4 p-3 bg-blue-900/20 border border-blue-500/30 rounded-lg max-w-2xl mx-auto">
+                <p className="text-sm text-blue-200">
                   <strong>Editing existing metadata:</strong> Your previous entries have been loaded. Make any changes and continue.
                 </p>
               </div>
             )}
           </div>
 
+          {/* Workflow Progress */}
+          <WorkflowProgress currentStep={2} className="mb-8" />
+
           {/* Form */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl shadow-lg p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label htmlFor="dataSource" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="dataSource" className="block text-sm font-medium text-gray-300 mb-2">
                   Data Source *
                 </label>
                 <input
@@ -187,7 +225,7 @@ export default function MetadataPage() {
               </div>
 
               <div>
-                <label htmlFor="dateOfCreation" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="dateOfCreation" className="block text-sm font-medium text-gray-300 mb-2">
                   Date of Creation *
                 </label>
                 <input
@@ -200,7 +238,7 @@ export default function MetadataPage() {
               </div>
 
               <div>
-                <label htmlFor="dataEntryPerson" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="dataEntryPerson" className="block text-sm font-medium text-gray-300 mb-2">
                   Data Entry Person *
                 </label>
                 <input
@@ -219,7 +257,7 @@ export default function MetadataPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gray-300 mb-2">
                   Important URLs
                 </label>
                 <div className="space-y-2">
@@ -256,7 +294,7 @@ export default function MetadataPage() {
               </div>
 
               <div>
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="description" className="block text-sm font-medium text-gray-300 mb-2">
                   Description *
                 </label>
                 <textarea
