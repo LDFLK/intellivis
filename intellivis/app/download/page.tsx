@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { OpenGinTabularFormat, OpenGinMetadata } from '../utils/openGinProcessor';
+import { OpenGinTabularFormat, OpenGinMetadata, Category } from '../utils/openGinProcessor';
 import { ZipGenerator, ZipFile } from '../utils/zipGenerator';
 
 export default function DownloadPage() {
@@ -125,6 +125,21 @@ export default function DownloadPage() {
     } catch (err) {
       console.error('Failed to copy to clipboard:', err);
     }
+  };
+
+  const renderCategories = (categories: Category[]): string => {
+    const formatCategory = (category: Category, level: number = 0): string => {
+      const indent = '  '.repeat(level);
+      let result = `${indent}• ${category.name}`;
+      
+      if (category.subcategories && category.subcategories.length > 0) {
+        result += '\n' + category.subcategories.map(sub => formatCategory(sub, level + 1)).join('\n');
+      }
+      
+      return result;
+    };
+    
+    return categories.map(category => formatCategory(category)).join('\n');
   };
 
   if (isLoading) {
@@ -326,6 +341,16 @@ export default function DownloadPage() {
                     <span className="text-gray-600 dark:text-gray-300">Entry Person:</span>
                     <span className="font-medium text-sm">{openGinData.metadata.dataEntryPerson}</span>
                   </div>
+                  {openGinData.metadata.categories && openGinData.metadata.categories.length > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-300">Categories:</span>
+                      <div className="text-right">
+                        <pre className="text-xs text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
+                          {renderCategories(openGinData.metadata.categories)}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

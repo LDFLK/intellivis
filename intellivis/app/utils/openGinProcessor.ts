@@ -1,9 +1,15 @@
+export interface Category {
+  name: string;
+  subcategories?: Category[];
+}
+
 export interface OpenGinMetadata {
   dataSource: string;
   dateOfCreation: string;
   dataEntryPerson: string;
   importantUrls: string[];
   description: string;
+  categories: Category[];
 }
 
 export interface OpenGinTabularFormat {

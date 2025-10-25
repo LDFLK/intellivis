@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import DataPreview from '../components/DataPreview';
-import { OpenGinProcessor, ProcessedFileData, OpenGinMetadata, OpenGinTabularFormat } from '../utils/openGinProcessor';
+import { OpenGinProcessor, ProcessedFileData, OpenGinMetadata, OpenGinTabularFormat, Category } from '../utils/openGinProcessor';
 
 export default function ReviewPage() {
   const router = useRouter();
@@ -73,6 +73,21 @@ export default function ReviewPage() {
       sessionStorage.setItem('metadata', JSON.stringify(metadata));
     }
     router.push('/metadata');
+  };
+
+  const renderCategories = (categories: Category[]): string => {
+    const formatCategory = (category: Category, level: number = 0): string => {
+      const indent = '  '.repeat(level);
+      let result = `${indent}• ${category.name}`;
+      
+      if (category.subcategories && category.subcategories.length > 0) {
+        result += '\n' + category.subcategories.map(sub => formatCategory(sub, level + 1)).join('\n');
+      }
+      
+      return result;
+    };
+    
+    return categories.map(category => formatCategory(category)).join('\n');
   };
 
   if (isLoading) {
@@ -174,6 +189,14 @@ export default function ReviewPage() {
                   <h3 className="font-medium text-gray-900 dark:text-white">Description</h3>
                   <p className="text-sm text-gray-600 dark:text-gray-300">{metadata.description}</p>
                 </div>
+                {metadata.categories && metadata.categories.length > 0 && (
+                  <div>
+                    <h3 className="font-medium text-gray-900 dark:text-white">Categories</h3>
+                    <div className="text-sm text-gray-600 dark:text-gray-300">
+                      {renderCategories(metadata.categories)}
+                    </div>
+                  </div>
+                )}
                 {metadata.importantUrls.length > 0 && (
                   <div>
                     <h3 className="font-medium text-gray-900 dark:text-white">Important URLs</h3>

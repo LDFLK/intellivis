@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { OpenGinMetadata } from '../utils/openGinProcessor';
+import { OpenGinMetadata, Category } from '../utils/openGinProcessor';
+import CategoryManager from '../components/CategoryManager';
 
 export default function MetadataPage() {
   const router = useRouter();
@@ -11,7 +12,8 @@ export default function MetadataPage() {
     dateOfCreation: new Date().toISOString().split('T')[0],
     dataEntryPerson: '',
     importantUrls: [''],
-    description: ''
+    description: '',
+    categories: []
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -270,6 +272,13 @@ export default function MetadataPage() {
                 {errors.description && (
                   <p className="mt-1 text-sm text-red-600">{errors.description}</p>
                 )}
+              </div>
+
+              <div>
+                <CategoryManager
+                  categories={formData.categories || []}
+                  onChange={(categories) => setFormData(prev => ({ ...prev, categories }))}
+                />
               </div>
 
               <div className="flex justify-between pt-4">
