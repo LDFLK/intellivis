@@ -2,6 +2,32 @@
 
 import { useState, useEffect } from 'react';
 import { VisualizationSuggestion } from '../utils/deepseekApi';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+import { Bar, Line, Pie, Scatter } from 'react-chartjs-2';
+
+// Register Chart.js components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 interface DataVisualizationProps {
   suggestion: VisualizationSuggestion;
@@ -256,20 +282,137 @@ export default function DataVisualization({ suggestion, data }: DataVisualizatio
           </table>
         </div>
       ) : (
-        <div className="h-64 flex items-center justify-center bg-gray-900/50 rounded-lg">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-            </div>
-            <p className="text-gray-400">
-              {suggestion.chartType?.toUpperCase()} Chart
-            </p>
-            <p className="text-sm text-gray-500 mt-1">
-              Chart visualization would be rendered here
-            </p>
-          </div>
+        <div className="h-96 bg-gray-900/50 rounded-lg p-4">
+          {chartData?.type === 'bar' && (
+            <Bar 
+              data={{
+                labels: chartData.labels,
+                datasets: chartData.datasets
+              }}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    labels: {
+                      color: '#d1d5db'
+                    }
+                  }
+                },
+                scales: {
+                  x: {
+                    ticks: {
+                      color: '#d1d5db'
+                    },
+                    grid: {
+                      color: '#374151'
+                    }
+                  },
+                  y: {
+                    ticks: {
+                      color: '#d1d5db'
+                    },
+                    grid: {
+                      color: '#374151'
+                    }
+                  }
+                }
+              }}
+            />
+          )}
+          
+          {chartData?.type === 'line' && (
+            <Line 
+              data={{
+                labels: chartData.labels,
+                datasets: chartData.datasets
+              }}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    labels: {
+                      color: '#d1d5db'
+                    }
+                  }
+                },
+                scales: {
+                  x: {
+                    ticks: {
+                      color: '#d1d5db'
+                    },
+                    grid: {
+                      color: '#374151'
+                    }
+                  },
+                  y: {
+                    ticks: {
+                      color: '#d1d5db'
+                    },
+                    grid: {
+                      color: '#374151'
+                    }
+                  }
+                }
+              }}
+            />
+          )}
+          
+          {chartData?.type === 'pie' && (
+            <Pie 
+              data={{
+                labels: chartData.labels,
+                datasets: chartData.datasets
+              }}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    labels: {
+                      color: '#d1d5db'
+                    }
+                  }
+                }
+              }}
+            />
+          )}
+          
+          {chartData?.type === 'scatter' && (
+            <Scatter 
+              data={chartData.datasets}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    labels: {
+                      color: '#d1d5db'
+                    }
+                  }
+                },
+                scales: {
+                  x: {
+                    ticks: {
+                      color: '#d1d5db'
+                    },
+                    grid: {
+                      color: '#374151'
+                    }
+                  },
+                  y: {
+                    ticks: {
+                      color: '#d1d5db'
+                    },
+                    grid: {
+                      color: '#374151'
+                    }
+                  }
+                }
+              }}
+            />
+          )}
         </div>
       )}
       

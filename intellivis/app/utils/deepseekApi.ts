@@ -25,6 +25,62 @@ export class DeepSeekAPI {
       throw new Error('Invalid API key format. DeepSeek API keys should start with "sk-"');
     }
   }
+
+  private static extractJsonFromResponse(content: string): any {
+    // Remove markdown code blocks if present
+    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[1].trim());
+    }
+    
+    // Try to find JSON object in the content
+    const jsonObjectMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonObjectMatch) {
+      return JSON.parse(jsonObjectMatch[0]);
+    }
+    
+    // If no markdown or JSON object found, try parsing the entire content
+    return JSON.parse(content.trim());
+  }
+
+  static async testApiKey(apiKey: string): Promise<boolean> {
+    this.validateApiKey(apiKey);
+    
+    try {
+      const response = await fetch(this.API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: this.MODEL,
+          messages: [
+            {
+              role: 'user',
+              content: 'Hello, this is a test message. Please respond with "API key is working correctly."'
+            }
+          ],
+          temperature: 0.1,
+          max_tokens: 50
+        })
+      });
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('API key authentication failed');
+        }
+        throw new Error(`API test failed: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      return data.choices && data.choices.length > 0;
+      
+    } catch (error) {
+      console.error('API Key Test Error:', error);
+      throw error;
+    }
+  }
   
   static async generateVisualizationSuggestions(
     dataSummary: {
@@ -63,6 +119,9 @@ export class DeepSeekAPI {
       });
       
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('DeepSeek API authentication failed. Please check your API key.');
+        }
         throw new Error(`DeepSeek API error: ${response.status} ${response.statusText}`);
       }
       
@@ -73,8 +132,8 @@ export class DeepSeekAPI {
         throw new Error('No response content from DeepSeek API');
       }
       
-      // Parse the JSON response
-      const parsedResponse = JSON.parse(content);
+      // Extract and parse JSON from the response
+      const parsedResponse = this.extractJsonFromResponse(content);
       return parsedResponse;
       
     } catch (error) {
@@ -135,6 +194,8 @@ Focus on the most valuable and interesting visualizations for this specific data
     },
     apiKey: string
   ): Promise<VisualizationSuggestion> {
+    this.validateApiKey(apiKey);
+    
     const prompt = `
 User Request: "${userRequest}"
 
@@ -178,6 +239,9 @@ Based on the user's request and the dataset, suggest a specific visualization. R
       });
       
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('DeepSeek API authentication failed. Please check your API key.');
+        }
         throw new Error(`DeepSeek API error: ${response.status} ${response.statusText}`);
       }
       
@@ -188,7 +252,8 @@ Based on the user's request and the dataset, suggest a specific visualization. R
         throw new Error('No response content from DeepSeek API');
       }
       
-      const parsedResponse = JSON.parse(content);
+      // Extract and parse JSON from the response
+      const parsedResponse = this.extractJsonFromResponse(content);
       return parsedResponse;
       
     } catch (error) {
