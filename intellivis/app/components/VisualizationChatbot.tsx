@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { DeepSeekAPI, VisualizationSuggestion } from '../utils/deepseekApi';
+import { pdfGenerator, PDFReportData } from '../utils/pdfGenerator';
 
 interface VisualizationChatbotProps {
   dataSummary: {
@@ -13,6 +14,8 @@ interface VisualizationChatbotProps {
   };
   apiKey: string;
   onVisualizationRequest: (suggestion: VisualizationSuggestion) => void;
+  metadata?: any;
+  dataTable?: any[][];
 }
 
 interface ChatMessage {
@@ -38,7 +41,9 @@ interface ChatContext {
 export default function VisualizationChatbot({
   dataSummary,
   apiKey,
-  onVisualizationRequest
+  onVisualizationRequest,
+  metadata,
+  dataTable
 }: VisualizationChatbotProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -124,8 +129,8 @@ Respond with exactly 5 suggestions, one per line, as specific user requests (e.g
         const content = data.choices[0]?.message?.content;
         if (content) {
           const suggestions = content.split('\n')
-            .map(line => line.trim())
-            .filter(line => line.length > 0)
+            .map((line: string) => line.trim())
+            .filter((line: string) => line.length > 0)
             .slice(0, 5);
           setIntelligentSuggestions(suggestions);
         }
@@ -215,6 +220,23 @@ Respond with exactly 5 suggestions, one per line, as specific user requests (e.g
     }
   };
 
+  const downloadPDFReport = () => {
+    const pdfData: PDFReportData = {
+      datasetName: dataSummary.datasetName,
+      totalRows: dataSummary.totalRows,
+      totalColumns: dataSummary.totalColumns,
+      columns: dataSummary.columns,
+      metadata: metadata,
+      chartData: null,
+      chartTitle: 'Data Analysis Report',
+      chartDescription: 'Comprehensive data analysis report',
+      chartType: 'report',
+      dataTable: dataTable || dataSummary.sampleData
+    };
+
+    pdfGenerator.downloadReport(pdfData, undefined, `${dataSummary.datasetName}_analysis_report.pdf`);
+  };
+
 
   const quickSuggestions = intelligentSuggestions.length > 0 ? intelligentSuggestions : [
     "Show me a bar chart of the most common values",
@@ -251,6 +273,16 @@ Respond with exactly 5 suggestions, one per line, as specific user requests (e.g
               {isGeneratingSuggestions ? 'Generating...' : 'Refresh'}
             </button>
           )}
+          <button
+            onClick={downloadPDFReport}
+            className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors flex items-center space-x-1"
+            title="Download PDF report with data table and metadata"
+          >
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span>PDF</span>
+          </button>
         </div>
       </div>
 

@@ -16,6 +16,7 @@ import {
 } from 'chart.js';
 import { Bar, Line, Pie, Scatter } from 'react-chartjs-2';
 import { useRef } from 'react';
+import { pdfGenerator, PDFReportData } from '../utils/pdfGenerator';
 
 // Register Chart.js components
 ChartJS.register(
@@ -37,14 +38,23 @@ interface DataVisualizationProps {
     rows: any[][];
   };
   onExportReport?: () => void;
+  dataSummary?: {
+    datasetName: string;
+    totalRows: number;
+    totalColumns: number;
+    columns: string[];
+    sampleData: any[][];
+  };
+  metadata?: any;
 }
 
-export default function DataVisualization({ suggestion, data, onExportReport }: DataVisualizationProps) {
+export default function DataVisualization({ suggestion, data, onExportReport, dataSummary, metadata }: DataVisualizationProps) {
   const [chartData, setChartData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedAxes, setSelectedAxes] = useState<{x: string, y: string} | null>(null);
   const [showAxisControls, setShowAxisControls] = useState(false);
   const [currentChartType, setCurrentChartType] = useState<string>('');
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const chartRef = useRef<any>(null);
 
   useEffect(() => {
@@ -421,6 +431,48 @@ export default function DataVisualization({ suggestion, data, onExportReport }: 
     document.body.removeChild(link);
   };
 
+  const downloadPDFReport = async () => {
+    if (!dataSummary) {
+      console.error('Data summary not available for PDF generation');
+      return;
+    }
+
+    setIsGeneratingPDF(true);
+    
+    try {
+      const pdfData: PDFReportData = {
+        datasetName: dataSummary.datasetName,
+        totalRows: dataSummary.totalRows,
+        totalColumns: dataSummary.totalColumns,
+        columns: dataSummary.columns,
+        metadata: metadata,
+        chartData: chartData,
+        chartTitle: suggestion.title,
+        chartDescription: suggestion.description,
+        chartType: currentChartType || suggestion.chartType,
+        dataTable: data.rows
+      };
+
+      // Get the chart element for capture - try to get the canvas or its container
+      let chartElement: HTMLElement | undefined;
+      if (chartRef.current?.canvas) {
+        // For Chart.js, get the canvas element or its parent container
+        chartElement = chartRef.current.canvas.parentElement || chartRef.current.canvas;
+      }
+      
+      console.log('Chart element for PDF:', chartElement);
+      
+      // Add a small delay to ensure chart is fully rendered
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      pdfGenerator.downloadReport(pdfData, chartElement, `${dataSummary.datasetName}_report.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6">
@@ -501,6 +553,32 @@ export default function DataVisualization({ suggestion, data, onExportReport }: 
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 <span>Report</span>
+              </button>
+            )}
+            {dataSummary && (
+              <button
+                onClick={downloadPDFReport}
+                disabled={isGeneratingPDF}
+                className={`px-3 py-1 text-white text-sm rounded transition-colors flex items-center space-x-1 ${
+                  isGeneratingPDF 
+                    ? 'bg-gray-600 cursor-not-allowed' 
+                    : 'bg-red-600 hover:bg-red-700'
+                }`}
+                title="Download PDF report with data table, metadata, and chart"
+              >
+                {isGeneratingPDF ? (
+                  <>
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                    <span>Generating...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span>PDF</span>
+                  </>
+                )}
               </button>
             )}
           </div>
