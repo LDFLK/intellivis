@@ -176,8 +176,8 @@ Please respond with a JSON object in this exact format:
   "insights": ["Key insight 1", "Key insight 2"]
 }
 
-Available chart types: bar, line, pie, scatter, histogram, heatmap
-Available types: chart, table, statistics, analysis
+IMPORTANT: Only use these supported chart types: bar, line, pie
+Available types: chart
 
 Focus on the most valuable and interesting visualizations for this specific dataset.
     `.trim();

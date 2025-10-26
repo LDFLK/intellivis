@@ -36,26 +36,23 @@ interface DataVisualizationProps {
     columns: string[];
     rows: any[][];
   };
+  onExportReport?: () => void;
 }
 
-export default function DataVisualization({ suggestion, data }: DataVisualizationProps) {
+export default function DataVisualization({ suggestion, data, onExportReport }: DataVisualizationProps) {
   const [chartData, setChartData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedAxes, setSelectedAxes] = useState<{x: string, y: string} | null>(null);
   const [showAxisControls, setShowAxisControls] = useState(false);
   const [currentChartType, setCurrentChartType] = useState<string>('');
-  const chartRef = useRef<ChartJS>(null);
+  const chartRef = useRef<any>(null);
 
   useEffect(() => {
     processData();
   }, [suggestion, data]);
 
-  useEffect(() => {
-    // Don't auto-update on initial load - only update when user changes axes
-    if (selectedAxes && chartData && chartData.type && chartData.type !== 'table' && !isLoading) {
-      // This will be triggered by the Update button click
-    }
-  }, [selectedAxes]);
+  // Note: We don't auto-update on selectedAxes change to prevent infinite loops
+  // The Update button explicitly calls updateChartWithAxes()
 
   const autoDetectAxes = (columns: string[]) => {
     // Try to detect numeric columns for Y axis and categorical for X axis
@@ -110,7 +107,7 @@ export default function DataVisualization({ suggestion, data }: DataVisualizatio
         const fallbackIndices = columns.slice(0, Math.min(selectedColumns.length, columns.length)).map((_, idx) => idx);
         if (fallbackIndices.length > 0) {
           console.warn(`Specified columns not found. Using available columns: ${fallbackIndices.map(idx => columns[idx]).join(', ')}`);
-          const processedData = createFallbackData(rows, fallbackIndices, columns, chartType);
+          const processedData = createFallbackData(rows, fallbackIndices, columns, chartType || 'bar');
           setChartData(processedData);
           return;
         }
@@ -161,41 +158,50 @@ export default function DataVisualization({ suggestion, data }: DataVisualizatio
   };
 
   const updateChartWithAxes = () => {
-    if (!selectedAxes || !data) return;
+    console.log('=== updateChartWithAxes called ===');
+    console.log('selectedAxes:', selectedAxes);
+    console.log('currentChartType:', currentChartType);
     
-    console.log('Updating chart with axes:', selectedAxes);
-    console.log('Current chart type:', currentChartType);
+    if (!selectedAxes || !data) {
+      console.log('Returning early: missing selectedAxes or data');
+      return;
+    }
     
     const { columns, rows } = data;
     const xIndex = columns.indexOf(selectedAxes.x);
     const yIndex = columns.indexOf(selectedAxes.y);
     
-    console.log('X index:', xIndex, 'Y index:', yIndex);
+    console.log('Column indices - X:', xIndex, 'Y:', yIndex);
     
     if (xIndex === -1 || yIndex === -1) {
-      console.error('Invalid axis indices');
+      console.error('Invalid axis indices - column not found in data');
       return;
     }
     
+    console.log('Creating chart data...');
     let updatedData;
     switch (currentChartType) {
       case 'bar':
+        console.log('Creating bar chart');
         updatedData = createBarChartData(rows, [xIndex, yIndex], columns);
         break;
       case 'line':
+        console.log('Creating line chart');
         updatedData = createLineChartData(rows, [xIndex, yIndex], columns);
         break;
       case 'pie':
-        // For pie charts, X is category, Y is value
+        console.log('Creating pie chart');
         updatedData = createPieChartWithValues(rows, xIndex, yIndex, columns);
         break;
       default:
-        console.log('Chart type not supported for axis update:', currentChartType);
+        console.log('Chart type not supported:', currentChartType);
         return;
     }
     
-    console.log('Updated chart data:', updatedData);
+    console.log('Chart data created:', updatedData);
+    console.log('Setting chart data...');
     setChartData(updatedData);
+    console.log('=== updateChartWithAxes complete ===');
   };
 
   const changeChartType = (newType: string) => {
@@ -462,29 +468,58 @@ export default function DataVisualization({ suggestion, data }: DataVisualizatio
             <h3 className="text-xl font-semibold text-white">{suggestion.title}</h3>
             <p className="text-gray-300 text-sm">{suggestion.description}</p>
           </div>
-          {chartData?.type !== 'table' && (
-            <div className="flex space-x-2">
+          <div className="flex space-x-2">
+            {chartData?.type !== 'table' && (
+              <>
+                <button
+                  onClick={() => downloadChart('png')}
+                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors flex items-center space-x-1"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span>PNG</span>
+                </button>
+                <button
+                  onClick={() => downloadChart('svg')}
+                  className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded transition-colors flex items-center space-x-1"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span>SVG</span>
+                </button>
+              </>
+            )}
+            {onExportReport && (
               <button
-                onClick={() => downloadChart('png')}
-                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors flex items-center space-x-1"
+                onClick={onExportReport}
+                className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded transition-colors flex items-center space-x-1"
+                title="Export report as Markdown"
               >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <span>PNG</span>
+                <span>Report</span>
               </button>
-              <button
-                onClick={() => downloadChart('svg')}
-                className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded transition-colors flex items-center space-x-1"
-              >
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <span>SVG</span>
-              </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
+        
+        {/* Show/Hide Controls Button */}
+        {selectedAxes && chartData?.type !== 'table' && !showAxisControls && (
+          <div className="mt-4">
+            <button
+              onClick={() => setShowAxisControls(true)}
+              className="w-full px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded transition-colors flex items-center justify-center space-x-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+              </svg>
+              <span>Show Chart Controls</span>
+            </button>
+          </div>
+        )}
         
         {/* Chart Type and Axis Controls */}
         {showAxisControls && selectedAxes && chartData?.type !== 'table' && (
@@ -492,10 +527,10 @@ export default function DataVisualization({ suggestion, data }: DataVisualizatio
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-sm font-medium text-white">Chart Controls</h4>
               <button
-                onClick={() => setShowAxisControls(!showAxisControls)}
-                className="text-gray-400 hover:text-white text-xs"
+                onClick={() => setShowAxisControls(false)}
+                className="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white text-xs rounded transition-colors"
               >
-                {showAxisControls ? 'Hide' : 'Show'} Controls
+                Hide Controls
               </button>
             </div>
             
