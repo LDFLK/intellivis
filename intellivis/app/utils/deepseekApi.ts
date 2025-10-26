@@ -183,6 +183,91 @@ Focus on the most valuable and interesting visualizations for this specific data
     `.trim();
   }
   
+  static async generateCustomVisualizationWithContext(
+    userRequest: string,
+    dataSummary: {
+      datasetName: string;
+      totalRows: number;
+      totalColumns: number;
+      columns: string[];
+      sampleData: any[][];
+    },
+    apiKey: string,
+    conversationHistory: Array<{role: string, content: string}> = []
+  ): Promise<VisualizationSuggestion> {
+    this.validateApiKey(apiKey);
+    
+    const prompt = `
+User Request: "${userRequest}"
+
+Dataset: ${dataSummary.datasetName}
+Columns: ${dataSummary.columns.join(', ')}
+Sample Data: ${dataSummary.sampleData.slice(0, 3).map(row => row.join(', ')).join('\n')}
+
+Based on the user's request and the dataset, suggest a specific visualization. Consider the conversation context and previous requests.
+Respond with JSON:
+{
+  "type": "chart",
+  "title": "Chart Title",
+  "description": "Description",
+  "chartType": "bar",
+  "columns": ["column1", "column2"],
+  "reasoning": "Why this visualization answers the user's request"
+}
+    `.trim();
+    
+    try {
+      // Build conversation context
+      const messages = [
+        {
+          role: 'system',
+          content: 'You are a data visualization expert. Create specific visualizations based on user requests and conversation context. Always respond with valid JSON.'
+        },
+        ...conversationHistory.slice(-6), // Keep last 6 messages for context
+        {
+          role: 'user',
+          content: prompt
+        }
+      ];
+
+      const response = await fetch(this.API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: this.MODEL,
+          messages,
+          temperature: 0.7,
+          max_tokens: 1000
+        })
+      });
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('DeepSeek API authentication failed. Please check your API key.');
+        }
+        throw new Error(`DeepSeek API error: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      const content = data.choices[0]?.message?.content;
+      
+      if (!content) {
+        throw new Error('No response content from DeepSeek API');
+      }
+      
+      // Extract and parse JSON from the response
+      const parsedResponse = this.extractJsonFromResponse(content);
+      return parsedResponse;
+      
+    } catch (error) {
+      console.error('DeepSeek API Error:', error);
+      throw new Error(`Failed to generate custom visualization: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
   static async generateCustomVisualization(
     userRequest: string,
     dataSummary: {

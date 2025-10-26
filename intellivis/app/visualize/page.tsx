@@ -48,6 +48,29 @@ export default function VisualizePage() {
     setCurrentVisualization(suggestion);
   };
 
+  const downloadDataAsCSV = () => {
+    if (!parsedData) return;
+    
+    const { columns, rows } = parsedData.data;
+    
+    // Create CSV content
+    const csvContent = [
+      columns.join(','), // Header row
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(',')) // Data rows
+    ].join('\n');
+    
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${dataSummary?.datasetName || 'data'}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleApiKeySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!apiKey.trim()) return;
@@ -256,7 +279,18 @@ export default function VisualizePage() {
               {/* Data Table */}
               {showDataTable && parsedData && (
                 <div className="mt-6">
-                  <h3 className="text-lg font-medium text-white mb-4">Data Preview</h3>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-medium text-white">Data Preview</h3>
+                    <button
+                      onClick={downloadDataAsCSV}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center space-x-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span>Download CSV</span>
+                    </button>
+                  </div>
                   <div className="bg-gray-900/50 rounded-lg p-4 max-h-96 overflow-auto">
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm text-gray-300">

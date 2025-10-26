@@ -15,6 +15,7 @@ import {
   Legend,
 } from 'chart.js';
 import { Bar, Line, Pie, Scatter } from 'react-chartjs-2';
+import { useRef } from 'react';
 
 // Register Chart.js components
 ChartJS.register(
@@ -40,10 +41,39 @@ interface DataVisualizationProps {
 export default function DataVisualization({ suggestion, data }: DataVisualizationProps) {
   const [chartData, setChartData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedAxes, setSelectedAxes] = useState<{x: string, y: string} | null>(null);
+  const [showAxisControls, setShowAxisControls] = useState(false);
+  const [currentChartType, setCurrentChartType] = useState<string>('');
+  const chartRef = useRef<ChartJS>(null);
 
   useEffect(() => {
     processData();
   }, [suggestion, data]);
+
+  useEffect(() => {
+    // Don't auto-update on initial load - only update when user changes axes
+    if (selectedAxes && chartData && chartData.type && chartData.type !== 'table' && !isLoading) {
+      // This will be triggered by the Update button click
+    }
+  }, [selectedAxes]);
+
+  const autoDetectAxes = (columns: string[]) => {
+    // Try to detect numeric columns for Y axis and categorical for X axis
+    const numericColumns = columns.filter(col => {
+      const sampleValues = data.rows.slice(0, 10).map(row => row[columns.indexOf(col)]);
+      return sampleValues.some(val => !isNaN(parseFloat(val)) && isFinite(parseFloat(val)));
+    });
+    
+    const categoricalColumns = columns.filter(col => {
+      const sampleValues = data.rows.slice(0, 10).map(row => row[columns.indexOf(col)]);
+      return sampleValues.some(val => isNaN(parseFloat(val)) || !isFinite(parseFloat(val)));
+    });
+
+    return {
+      x: categoricalColumns[0] || columns[0],
+      y: numericColumns[0] || columns[1] || columns[0]
+    };
+  };
 
   const processData = () => {
     setIsLoading(true);
@@ -56,12 +86,35 @@ export default function DataVisualization({ suggestion, data }: DataVisualizatio
         throw new Error('No columns specified for visualization');
       }
       
-      // Find column indices
-      const columnIndices = selectedColumns.map(col => columns.indexOf(col));
+      // Find column indices with fuzzy matching
+      const columnIndices = selectedColumns.map(col => {
+        // First try exact match
+        let index = columns.indexOf(col);
+        if (index !== -1) return index;
+        
+        // Try case-insensitive match
+        index = columns.findIndex(c => c.toLowerCase() === col.toLowerCase());
+        if (index !== -1) return index;
+        
+        // Try partial match (contains)
+        index = columns.findIndex(c => c.toLowerCase().includes(col.toLowerCase()) || col.toLowerCase().includes(c.toLowerCase()));
+        if (index !== -1) return index;
+        
+        return -1;
+      });
+      
       const validIndices = columnIndices.filter(idx => idx !== -1);
       
       if (validIndices.length === 0) {
-        throw new Error('Specified columns not found in data');
+        // If no columns match, use the first few available columns as fallback
+        const fallbackIndices = columns.slice(0, Math.min(selectedColumns.length, columns.length)).map((_, idx) => idx);
+        if (fallbackIndices.length > 0) {
+          console.warn(`Specified columns not found. Using available columns: ${fallbackIndices.map(idx => columns[idx]).join(', ')}`);
+          const processedData = createFallbackData(rows, fallbackIndices, columns, chartType);
+          setChartData(processedData);
+          return;
+        }
+        throw new Error(`Specified columns not found in data. Available columns: ${columns.join(', ')}`);
       }
       
       let processedData;
@@ -87,28 +140,91 @@ export default function DataVisualization({ suggestion, data }: DataVisualizatio
       }
       
       setChartData(processedData);
+      setCurrentChartType(processedData.type);
+      
+      // Auto-detect axes for interactive charts
+      if (processedData.type !== 'table') {
+        const detectedAxes = autoDetectAxes(data.columns);
+        setSelectedAxes(detectedAxes);
+        setShowAxisControls(true);
+      }
     } catch (error) {
       console.error('Error processing data:', error);
-      setChartData({ error: error instanceof Error ? error.message : 'Unknown error' });
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setChartData({ 
+        error: errorMessage,
+        availableColumns: data.columns 
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
+  const updateChartWithAxes = () => {
+    if (!selectedAxes || !data) return;
+    
+    console.log('Updating chart with axes:', selectedAxes);
+    console.log('Current chart type:', currentChartType);
+    
+    const { columns, rows } = data;
+    const xIndex = columns.indexOf(selectedAxes.x);
+    const yIndex = columns.indexOf(selectedAxes.y);
+    
+    console.log('X index:', xIndex, 'Y index:', yIndex);
+    
+    if (xIndex === -1 || yIndex === -1) {
+      console.error('Invalid axis indices');
+      return;
+    }
+    
+    let updatedData;
+    switch (currentChartType) {
+      case 'bar':
+        updatedData = createBarChartData(rows, [xIndex, yIndex], columns);
+        break;
+      case 'line':
+        updatedData = createLineChartData(rows, [xIndex, yIndex], columns);
+        break;
+      case 'pie':
+        // For pie charts, X is category, Y is value
+        updatedData = createPieChartWithValues(rows, xIndex, yIndex, columns);
+        break;
+      default:
+        console.log('Chart type not supported for axis update:', currentChartType);
+        return;
+    }
+    
+    console.log('Updated chart data:', updatedData);
+    setChartData(updatedData);
+  };
+
+  const changeChartType = (newType: string) => {
+    setCurrentChartType(newType);
+    // Only update if not scatter (we're removing it)
+    if (newType !== 'scatter') {
+      updateChartWithAxes();
+    }
+  };
+
   const createBarChartData = (rows: any[][], indices: number[], columns: string[]) => {
-    const valueCounts: { [key: string]: number } = {};
+    // For bar charts, use first index as x-axis (categories) and second as y-axis (values)
+    const xIndex = indices[0];
+    const yIndex = indices[1];
+    
+    const grouped: { [key: string]: number } = {};
     
     rows.forEach(row => {
-      const key = indices.map(idx => row[idx]).join(' - ');
-      valueCounts[key] = (valueCounts[key] || 0) + 1;
+      const key = row[xIndex];
+      const value = parseFloat(row[yIndex]) || 0;
+      grouped[key] = (grouped[key] || 0) + value;
     });
     
     return {
       type: 'bar',
-      labels: Object.keys(valueCounts),
+      labels: Object.keys(grouped),
       datasets: [{
-        label: 'Count',
-        data: Object.values(valueCounts),
+        label: columns[yIndex] || 'Value',
+        data: Object.values(grouped),
         backgroundColor: 'rgba(59, 130, 246, 0.5)',
         borderColor: 'rgba(59, 130, 246, 1)',
         borderWidth: 1
@@ -117,22 +233,30 @@ export default function DataVisualization({ suggestion, data }: DataVisualizatio
   };
 
   const createLineChartData = (rows: any[][], indices: number[], columns: string[]) => {
+    const xIndex = indices[0];
+    const yIndex = indices[1];
+    
+    // Sort by x-axis value
     const sortedRows = [...rows].sort((a, b) => {
-      const aVal = parseFloat(a[indices[0]]) || 0;
-      const bVal = parseFloat(b[indices[0]]) || 0;
-      return aVal - bVal;
+      const aVal = a[xIndex];
+      const bVal = b[xIndex];
+      // Try numeric comparison first
+      if (!isNaN(parseFloat(aVal)) && !isNaN(parseFloat(bVal))) {
+        return parseFloat(aVal) - parseFloat(bVal);
+      }
+      return String(aVal).localeCompare(String(bVal));
     });
     
     return {
       type: 'line',
-      labels: sortedRows.map(row => row[indices[0]]),
-      datasets: indices.slice(1).map((idx, i) => ({
-        label: columns[idx],
-        data: sortedRows.map(row => parseFloat(row[idx]) || 0),
-        borderColor: `hsl(${i * 60}, 70%, 50%)`,
-        backgroundColor: `hsla(${i * 60}, 70%, 50%, 0.1)`,
+      labels: sortedRows.map(row => String(row[xIndex])),
+      datasets: [{
+        label: columns[yIndex] || 'Value',
+        data: sortedRows.map(row => parseFloat(row[yIndex]) || 0),
+        borderColor: 'rgba(59, 130, 246, 1)',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
         tension: 0.1
-      }))
+      }]
     };
   };
 
@@ -164,14 +288,51 @@ export default function DataVisualization({ suggestion, data }: DataVisualizatio
     };
   };
 
+  const createPieChartWithValues = (rows: any[][], categoryIndex: number, valueIndex: number, columns: string[]) => {
+    // Group by category and sum the values
+    const grouped: { [key: string]: number } = {};
+    
+    rows.forEach(row => {
+      const category = String(row[categoryIndex]);
+      const value = parseFloat(row[valueIndex]) || 0;
+      grouped[category] = (grouped[category] || 0) + value;
+    });
+    
+    const colors = [
+      'rgba(255, 99, 132, 0.8)',
+      'rgba(54, 162, 235, 0.8)',
+      'rgba(255, 205, 86, 0.8)',
+      'rgba(75, 192, 192, 0.8)',
+      'rgba(153, 102, 255, 0.8)',
+      'rgba(255, 159, 64, 0.8)',
+      'rgba(199, 199, 199, 0.8)',
+      'rgba(83, 102, 255, 0.8)',
+      'rgba(255, 159, 64, 0.8)'
+    ];
+    
+    return {
+      type: 'pie',
+      labels: Object.keys(grouped),
+      datasets: [{
+        label: columns[valueIndex] || 'Value',
+        data: Object.values(grouped),
+        backgroundColor: colors.slice(0, Object.keys(grouped).length),
+        borderWidth: 1
+      }]
+    };
+  };
+
   const createScatterChartData = (rows: any[][], indices: number[], columns: string[]) => {
+    const xIndex = indices[0];
+    const yIndex = indices[1];
+    
     return {
       type: 'scatter',
       datasets: [{
-        label: `${columns[indices[0]]} vs ${columns[indices[1]]}`,
+        label: `${columns[xIndex]} vs ${columns[yIndex]}`,
         data: rows.map(row => ({
-          x: parseFloat(row[indices[0]]) || 0,
-          y: parseFloat(row[indices[1]]) || 0
+          x: parseFloat(row[xIndex]) || 0,
+          y: parseFloat(row[yIndex]) || 0
         })),
         backgroundColor: 'rgba(59, 130, 246, 0.5)',
         borderColor: 'rgba(59, 130, 246, 1)'
@@ -222,6 +383,38 @@ export default function DataVisualization({ suggestion, data }: DataVisualizatio
     };
   };
 
+  const createFallbackData = (rows: any[][], indices: number[], columns: string[], chartType: string) => {
+    // Create a simple visualization using available columns
+    switch (chartType) {
+      case 'bar':
+        return createBarChartData(rows, indices, columns);
+      case 'line':
+        return createLineChartData(rows, indices, columns);
+      case 'pie':
+        return createPieChartData(rows, indices, columns);
+      case 'scatter':
+        return createScatterChartData(rows, indices, columns);
+      case 'histogram':
+        return createHistogramData(rows, indices[0], columns);
+      default:
+        return createTableData(rows, indices, columns);
+    }
+  };
+
+  const downloadChart = (format: 'png' | 'svg' = 'png') => {
+    if (!chartRef.current) return;
+    
+    const canvas = chartRef.current.canvas;
+    const url = canvas.toDataURL(`image/${format}`);
+    
+    const link = document.createElement('a');
+    link.download = `${suggestion.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.${format}`;
+    link.href = url;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (isLoading) {
     return (
       <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6">
@@ -243,7 +436,19 @@ export default function DataVisualization({ suggestion, data }: DataVisualizatio
             </svg>
           </div>
           <h3 className="text-lg font-semibold text-red-400 mb-2">Visualization Error</h3>
-          <p className="text-gray-300">{chartData.error}</p>
+          <p className="text-gray-300 mb-4">{chartData.error}</p>
+          {chartData.availableColumns && (
+            <div className="mt-4 p-3 bg-gray-700/50 rounded-lg">
+              <p className="text-sm text-gray-400 mb-2">Available columns:</p>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {chartData.availableColumns.map((col: string, index: number) => (
+                  <span key={index} className="px-2 py-1 bg-blue-500/20 text-blue-300 text-xs rounded">
+                    {col}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -252,8 +457,118 @@ export default function DataVisualization({ suggestion, data }: DataVisualizatio
   return (
     <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6">
       <div className="mb-4">
-        <h3 className="text-xl font-semibold text-white mb-2">{suggestion.title}</h3>
-        <p className="text-gray-300 text-sm">{suggestion.description}</p>
+        <div className="flex justify-between items-start mb-2">
+          <div>
+            <h3 className="text-xl font-semibold text-white">{suggestion.title}</h3>
+            <p className="text-gray-300 text-sm">{suggestion.description}</p>
+          </div>
+          {chartData?.type !== 'table' && (
+            <div className="flex space-x-2">
+              <button
+                onClick={() => downloadChart('png')}
+                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors flex items-center space-x-1"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span>PNG</span>
+              </button>
+              <button
+                onClick={() => downloadChart('svg')}
+                className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded transition-colors flex items-center space-x-1"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span>SVG</span>
+              </button>
+            </div>
+          )}
+        </div>
+        
+        {/* Chart Type and Axis Controls */}
+        {showAxisControls && selectedAxes && chartData?.type !== 'table' && (
+          <div className="mt-4 p-4 bg-gray-700/50 rounded-lg">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-medium text-white">Chart Controls</h4>
+              <button
+                onClick={() => setShowAxisControls(!showAxisControls)}
+                className="text-gray-400 hover:text-white text-xs"
+              >
+                {showAxisControls ? 'Hide' : 'Show'} Controls
+              </button>
+            </div>
+            
+            {/* Chart Type Selector */}
+            <div className="mb-4">
+              <label className="block text-xs text-gray-400 mb-1">Chart Type</label>
+              <select
+                value={currentChartType}
+                onChange={(e) => changeChartType(e.target.value)}
+                className="w-full px-2 py-1 bg-gray-800 border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="bar">Bar Chart</option>
+                <option value="line">Line Chart</option>
+                <option value="pie">Pie Chart</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">
+                  {currentChartType === 'pie' ? 'Category' : 'X-Axis'}
+                </label>
+                <select
+                  value={selectedAxes.x}
+                  onChange={(e) => setSelectedAxes({...selectedAxes, x: e.target.value})}
+                  className="w-full px-2 py-1 bg-gray-800 border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {data.columns.map((col, index) => (
+                    <option key={index} value={col}>{col}</option>
+                  ))}
+                </select>
+              </div>
+              {currentChartType !== 'pie' && (
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Y-Axis</label>
+                  <select
+                    value={selectedAxes.y}
+                    onChange={(e) => setSelectedAxes({...selectedAxes, y: e.target.value})}
+                    className="w-full px-2 py-1 bg-gray-800 border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {data.columns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {currentChartType === 'pie' && (
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Value</label>
+                  <select
+                    value={selectedAxes.y}
+                    onChange={(e) => setSelectedAxes({...selectedAxes, y: e.target.value})}
+                    className="w-full px-2 py-1 bg-gray-800 border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {data.columns.map((col, index) => (
+                      <option key={index} value={col}>{col}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+            <div className="mt-3 flex justify-between items-center">
+              <span className="text-xs text-gray-400">
+                Current: {selectedAxes.x} {currentChartType === 'pie' ? '→' : 'vs'} {selectedAxes.y}
+              </span>
+              <button
+                onClick={updateChartWithAxes}
+                className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition-colors"
+              >
+                Update Chart
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       
       {chartData?.type === 'table' ? (
@@ -283,8 +598,9 @@ export default function DataVisualization({ suggestion, data }: DataVisualizatio
         </div>
       ) : (
         <div className="h-96 bg-gray-900/50 rounded-lg p-4">
-          {chartData?.type === 'bar' && (
+          {currentChartType === 'bar' && (
             <Bar 
+              ref={chartRef}
               data={{
                 labels: chartData.labels,
                 datasets: chartData.datasets
@@ -321,8 +637,9 @@ export default function DataVisualization({ suggestion, data }: DataVisualizatio
             />
           )}
           
-          {chartData?.type === 'line' && (
+          {currentChartType === 'line' && (
             <Line 
+              ref={chartRef}
               data={{
                 labels: chartData.labels,
                 datasets: chartData.datasets
@@ -359,8 +676,9 @@ export default function DataVisualization({ suggestion, data }: DataVisualizatio
             />
           )}
           
-          {chartData?.type === 'pie' && (
+          {currentChartType === 'pie' && (
             <Pie 
+              ref={chartRef}
               data={{
                 labels: chartData.labels,
                 datasets: chartData.datasets
@@ -379,40 +697,6 @@ export default function DataVisualization({ suggestion, data }: DataVisualizatio
             />
           )}
           
-          {chartData?.type === 'scatter' && (
-            <Scatter 
-              data={chartData.datasets}
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                  legend: {
-                    labels: {
-                      color: '#d1d5db'
-                    }
-                  }
-                },
-                scales: {
-                  x: {
-                    ticks: {
-                      color: '#d1d5db'
-                    },
-                    grid: {
-                      color: '#374151'
-                    }
-                  },
-                  y: {
-                    ticks: {
-                      color: '#d1d5db'
-                    },
-                    grid: {
-                      color: '#374151'
-                    }
-                  }
-                }
-              }}
-            />
-          )}
         </div>
       )}
       
