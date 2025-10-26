@@ -1,0 +1,42 @@
+[
+  {
+    "id": 1,
+    "name": "John Doe",
+    "email": "john.doe@example.com",
+    "age": 30,
+    "city": "New York",
+    "department": "Engineering"
+  },
+  {
+    "id": 2,
+    "name": "Jane Smith",
+    "email": "jane.smith@example.com",
+    "age": 28,
+    "city": "San Francisco",
+    "department": "Marketing"
+  },
+  {
+    "id": 3,
+    "name": "Bob Johnson",
+    "email": "bob.johnson@example.com",
+    "age": 35,
+    "city": "Chicago",
+    "department": "Sales"
+  },
+  {
+    "id": 4,
+    "name": "Alice Brown",
+    "email": "alice.brown@example.com",
+    "age": 32,
+    "city": "Seattle",
+    "department": "Engineering"
+  },
+  {
+    "id": 5,
+    "name": "Charlie Wilson",
+    "email": "charlie.wilson@example.com",
+    "age": 29,
+    "city": "Boston",
+    "department": "HR"
+  }
+]

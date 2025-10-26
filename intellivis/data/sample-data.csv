@@ -1,0 +1,6 @@
+name,email,age,city,department
+John Doe,john.doe@example.com,30,New York,Engineering
+Jane Smith,jane.smith@example.com,28,San Francisco,Marketing
+Bob Johnson,bob.johnson@example.com,35,Chicago,Sales
+Alice Brown,alice.brown@example.com,32,Seattle,Engineering
+Charlie Wilson,charlie.wilson@example.com,29,Boston,HR

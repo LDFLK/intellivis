@@ -1,0 +1,21 @@
+{
+  "datasetName": "Employee Database",
+  "metadata": {
+    "dataSource": "HR Management System",
+    "dateOfCreation": "2024-01-15",
+    "dataEntryPerson": "HR Department",
+    "importantUrls": [
+      "https://company.com/hr-policy",
+      "https://company.com/employee-handbook"
+    ],
+    "description": "Employee information including personal details, contact information, and departmental assignments for organizational management and reporting purposes."
+  },
+  "columns": ["name", "email", "age", "city", "department"],
+  "rows": [
+    ["John Doe", "john.doe@example.com", 30, "New York", "Engineering"],
+    ["Jane Smith", "jane.smith@example.com", 28, "San Francisco", "Marketing"],
+    ["Bob Johnson", "bob.johnson@example.com", 35, "Chicago", "Sales"],
+    ["Alice Brown", "alice.brown@example.com", 32, "Seattle", "Engineering"],
+    ["Charlie Wilson", "charlie.wilson@example.com", 29, "Boston", "HR"]
+  ]
+}
